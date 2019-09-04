@@ -1,0 +1,10 @@
+<launch>
+
+<!-- Launch the test -->
+<test test-name="rt_logger_test"
+  pkg="rt_logger"
+  type="rt_logger_test"
+  time-limit="80.0">
+</test>
+
+</launch>
