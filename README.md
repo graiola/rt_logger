@@ -20,3 +20,8 @@ Finally, add this line in the main loop of your code to publish the data:
 
 Check out this [test](https://github.com/graiola/rt_logger/blob/master/test/rt_logger_test.cpp) for more examples.
 
+## To do
+
+- Add the ros time to the publishers
+- Add the possibility to write to file through a buffer
+- Add one publisher option
