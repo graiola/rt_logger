@@ -41,9 +41,9 @@ public:
         publishers_->addPublisher(name,&x);
     }
 
-    void publish(const ros::Time& /*time*/)
+    void publish(const ros::Time& time)
     {
-        publishers_->publishAll();
+        publishers_->publishAll(time);
     }
 
 private:
