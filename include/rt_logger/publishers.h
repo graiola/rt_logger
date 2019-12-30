@@ -208,7 +208,7 @@ public:
     // Add a RealTimePublisher already created
     void addPublisher(std::shared_ptr<rt_publisher_interface_t> pub_ptr)
     {
-        assert(pub_ptr!=false);
+        assert(pub_ptr);
         // Put it into the map with its friends
         map_[pub_ptr->getTopic()] = pub_ptr;
     }
