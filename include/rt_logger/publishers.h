@@ -60,7 +60,7 @@ public:
         assert(topic_name.size() > 0);
         assert(data);
         topic_name_ = topic_name;
-        pub_ptr_.reset(new rt_publisher_t(ros_nh,topic_name,10));
+        //pub_ptr_.reset(new rt_publisher_t(ros_nh,topic_name,10));
         data_ = data;
     }
 
@@ -71,10 +71,11 @@ public:
 
     inline rt_publisher_t* getPubPtr(){if(pub_ptr_) return pub_ptr_.get();}
 
+    msg_t msg_;
+
 protected:
     std::shared_ptr<rt_publisher_t > pub_ptr_;
     data_t* data_ = NULL;
-
 };
 
 template<typename data_t> struct IsEigen     : std::is_base_of<Eigen::MatrixBase<typename std::decay<data_t>::type>, typename std::decay<data_t>::type > { };
@@ -103,67 +104,55 @@ inline void resize_imp(RealTimePublisher<data_t>* obj)
 {
     unsigned int cols = obj->getDataPtr()->cols();
     unsigned int rows = obj->getDataPtr()->rows();
-    obj->getPubPtr()->msg_.array.layout.dim.push_back(std_msgs::MultiArrayDimension());
-    obj->getPubPtr()->msg_.array.layout.dim.push_back(std_msgs::MultiArrayDimension());
-    obj->getPubPtr()->msg_.array.layout.dim[0].label = "rows";
-    obj->getPubPtr()->msg_.array.layout.dim[1].label = "cols";
-    obj->getPubPtr()->msg_.array.layout.dim[0].size = rows;
-    obj->getPubPtr()->msg_.array.layout.dim[1].size = cols;
-    obj->getPubPtr()->msg_.array.layout.dim[0].stride = rows*cols;
-    obj->getPubPtr()->msg_.array.layout.dim[1].stride = cols;
-    obj->getPubPtr()->msg_.array.layout.data_offset = 0;
-    obj->getPubPtr()->msg_.array.data.resize(rows*cols);
+    obj->msg_.array.layout.dim.push_back(std_msgs::MultiArrayDimension());
+    obj->msg_.array.layout.dim.push_back(std_msgs::MultiArrayDimension());
+    obj->msg_.array.layout.dim[0].label = "rows";
+    obj->msg_.array.layout.dim[1].label = "cols";
+    obj->msg_.array.layout.dim[0].size = rows;
+    obj->msg_.array.layout.dim[1].size = cols;
+    obj->msg_.array.layout.dim[0].stride = rows*cols;
+    obj->msg_.array.layout.dim[1].stride = cols;
+    obj->msg_.array.layout.data_offset = 0;
+    obj->msg_.array.data.resize(rows*cols);
 }
 
 template <typename data_t, typename std::enable_if<IsScalar<data_t>::value,int>::type = 1>
 inline void resize_imp(RealTimePublisher<data_t>* obj)
 {
-    obj->getPubPtr()->msg_.array.data.resize(1);
+    obj->msg_.array.data.resize(1);
 }
 
 template <typename data_t, typename std::enable_if<isStdContainer<data_t>::value,int>::type = 2>
 inline void resize_imp(RealTimePublisher<data_t>* obj)
 {
-    obj->getPubPtr()->msg_.array.data.resize(obj->getDataPtr()->size());
+    obj->msg_.array.data.resize(obj->getDataPtr()->size());
 }
 
 template <typename data_t, typename std::enable_if<IsEigen<data_t>::value,int>::type = 0>
-inline void publish_imp(RealTimePublisher<data_t>* obj, const ros::Time& time)
+inline void fill_msg_imp(RealTimePublisher<data_t>* obj, const ros::Time& time)
 {
-    if(obj->getPubPtr()->trylock() && obj->getDataPtr())
-    {
         const unsigned int & cols = obj->getDataPtr()->cols();
         const unsigned int & rows = obj->getDataPtr()->rows();
         for(unsigned int i = 0; i < rows; i++)
             for(unsigned int j = 0; j < cols; j++)
-                obj->getPubPtr()->msg_.array.data[i*cols + j] = static_cast<float>(obj->getDataPtr()->operator()(i,j));
-        obj->getPubPtr()->msg_.time.data = time;
-        obj->getPubPtr()->unlockAndPublish();
-    }
+                obj->msg_.array.data[i*cols + j] = static_cast<float>(obj->getDataPtr()->operator()(i,j));
+        obj->msg_.time.data = time;
 }
 
 template <typename data_t, typename std::enable_if<IsScalar<data_t>::value,int>::type = 1>
-inline void publish_imp(RealTimePublisher<data_t>* obj, const ros::Time& time)
+inline void fill_msg_imp(RealTimePublisher<data_t>* obj, const ros::Time& time)
 {
-    if(obj->getPubPtr()->trylock() && obj->getDataPtr())
-    {
-        obj->getPubPtr()->msg_.array.data[0] = static_cast<float>(*obj->getDataPtr());
-        obj->getPubPtr()->msg_.time.data = time;
-        obj->getPubPtr()->unlockAndPublish();
-    }
+        obj->msg_.array.data[0] = static_cast<float>(*obj->getDataPtr());
+        obj->msg_.time.data = time;
 }
 
 template <typename data_t, typename std::enable_if<isStdContainer<data_t>::value,int>::type = 2>
-inline void publish_imp(RealTimePublisher<data_t>* obj, const ros::Time& time)
+inline void fill_msg_imp(RealTimePublisher<data_t>* obj, const ros::Time& time)
 {
-    if(obj->getPubPtr()->trylock() && obj->getDataPtr())
-    {
         const unsigned int & size = obj->getDataPtr()->size();
         for(unsigned int i = 0; i < size; i++)
-                obj->getPubPtr()->msg_.array.data[i] = static_cast<float>(obj->getDataPtr()->operator[](i));
-        obj->getPubPtr()->msg_.time.data = time;
-        obj->getPubPtr()->unlockAndPublish();
-    }
+                obj->msg_.array.data[i] = static_cast<float>(obj->getDataPtr()->operator[](i));
+        obj->msg_.time.data = time;
 }
 
 template <typename data_t>
@@ -177,10 +166,13 @@ public:
         resize_imp<data_t>(this);
     }
 
-    /** Publish the topic. */
     inline void publish(const ros::Time& time) override
     {
-        publish_imp<data_t>(this,time);
+        if(this->getPubPtr()->trylock() && this->getDataPtr())
+        {
+            fill_msg_imp<data_t>(this,time);
+            this->getPubPtr()->unlockAndPublish();
+        }
     }
 };
 
@@ -216,6 +208,17 @@ public:
     // Add a new fresh RealTimePublisher
     template <typename data_t>
     void addPublisher(const std::string& topic_name, data_t* const data_ptr)
+    {
+        std::shared_ptr<RealTimePublisher<data_t>> new_pub_ptr;
+        new_pub_ptr.reset(new RealTimePublisher<data_t>(nh_,topic_name,data_ptr));
+
+        std::shared_ptr<rt_publisher_interface_t> pub_ptr =
+                std::static_pointer_cast<rt_publisher_interface_t>(new_pub_ptr);
+        addPublisher(pub_ptr);
+    }
+
+    template <typename data_t>
+    void addData(const std::string& topic_name, const std::string& data_name, data_t* const data_ptr)
     {
         std::shared_ptr<RealTimePublisher<data_t>> new_pub_ptr;
         new_pub_ptr.reset(new RealTimePublisher<data_t>(nh_,topic_name,data_ptr));
