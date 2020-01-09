@@ -36,9 +36,9 @@ public:
     }
 
     template <typename data_t>
-    void addPublisher(const std::string& name, const data_t& x)
+    void addPublisher(const std::string& topic_name, const data_t& data, const std::string& data_name = "")
     {
-        publishers_->addPublisher(name,&x);
+        publishers_->addPublisher(topic_name,&data,data_name);
     }
 
     void publish(const ros::Time& time)
