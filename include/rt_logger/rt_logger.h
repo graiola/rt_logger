@@ -51,7 +51,7 @@ private:
   RtLogger()
   {
       ros::NodeHandle logger_nh("rt_logger");
-      publishers_.reset(new RealTimePublishers(logger_nh));
+      publishers_.reset(new PublishersManager(logger_nh));
   }
 
   //~RtLogger()
@@ -59,7 +59,7 @@ private:
   RtLogger(const RtLogger&)= delete;
   RtLogger& operator=(const RtLogger&)= delete;
 
-  RealTimePublishers::Ptr publishers_;
+  PublishersManager::Ptr publishers_;
 
 };
 

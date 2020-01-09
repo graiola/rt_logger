@@ -24,4 +24,4 @@ Check out this [test](https://github.com/graiola/rt_logger/blob/master/test/rt_l
 
 - [x] Add the ros time to the publishers 
 - [ ] Add the possibility to write to file through a buffer
-- [ ] Add one publisher option
+- [x] Add one publisher option

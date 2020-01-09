@@ -228,23 +228,23 @@ private:
     data_t* data_;
 };
 
-class RealTimePublishers
+class PublishersManager
 {
 public:
 
     /**
-     * @brief Shared pointer to RealTimePublishers
+     * @brief Shared pointer to PublishersManager
      */
-    typedef std::shared_ptr<RealTimePublishers> Ptr;
+    typedef std::shared_ptr<PublishersManager> Ptr;
 
     /**
-     * @brief Shared pointer to const RealTimePublishers
+     * @brief Shared pointer to const PublishersManager
      */
-    typedef std::shared_ptr<const RealTimePublishers> ConstPtr;
+    typedef std::shared_ptr<const PublishersManager> ConstPtr;
 
     typedef RealTimePublisherInterface rt_publisher_interface_t;
 
-    RealTimePublishers(const ros::NodeHandle& ros_nh)
+    PublishersManager(const ros::NodeHandle& ros_nh)
     {
         nh_ = ros_nh;
     }
