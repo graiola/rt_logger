@@ -271,12 +271,21 @@ public:
     }
 
     /**
-     * @brief Publish
+     * @brief Publish all the available topics
      */
-    void publishAll(const ros::Time& time)
+    void publish(const ros::Time& time)
     {
         for(auto& tmp_map : pubs_map_)
             tmp_map.second->publish(time);
+    }
+
+    /**
+     * @brief Publish the selected topic
+     */
+    void publish(const ros::Time& time, const std::string& topic_name)
+    {
+        if(pubs_map_.count(topic_name))
+            pubs_map_[topic_name]->publish(time);
     }
 
 private:

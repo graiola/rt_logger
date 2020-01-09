@@ -43,7 +43,12 @@ public:
 
     void publish(const ros::Time& time)
     {
-        publishers_->publishAll(time);
+        publishers_->publish(time);
+    }
+
+    void publish(const ros::Time& time, const std::string& topic_name)
+    {
+        publishers_->publish(time,topic_name);
     }
 
 private:

@@ -37,12 +37,22 @@ TEST(RtLoggerTest, SinglePublisher)
     EXPECT_NO_THROW(RtLogger::getLogger().addPublisher("/single_publisher",eigen_matrix,"eigen_matrix"));
 }
 
+TEST(RtLoggerTest, PublishAll)
+{
+    int cnt = 0;
+    while(ros::ok() && cnt++<50)
+    {
+        EXPECT_NO_THROW(RtLogger::getLogger().publish(ros::Time::now()));
+        ros::Duration(0.1).sleep();
+    }
+}
+
 TEST(RtLoggerTest, Publish)
 {
     int cnt = 0;
-    while(ros::ok() && cnt++<100)
+    while(ros::ok() && cnt++<50)
     {
-        EXPECT_NO_THROW(RtLogger::getLogger().publish(ros::Time::now()));
+        EXPECT_NO_THROW(RtLogger::getLogger().publish(ros::Time::now(),"/single_publisher"));
         ros::Duration(0.1).sleep();
     }
 }
