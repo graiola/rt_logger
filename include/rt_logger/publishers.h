@@ -21,12 +21,35 @@
 
 #include <ros/ros.h>
 #include <realtime_tools/realtime_publisher.h>
-#include <rt_logger/LoggerNumeric.h>
+#include <rt_logger/LoggerNumericArray.h>
 #include <eigen3/Eigen/Core>
 #include <type_traits>
 
 namespace rt_logger
 {
+
+class MsgInterface
+{
+public:
+
+    /**
+     * @brief Shared pointer to Msg
+     */
+    typedef std::shared_ptr<MsgInterface> Ptr;
+
+    typedef rt_logger::LoggerNumeric msg_t;
+
+    MsgInterface(){}
+
+    virtual ~MsgInterface(){}
+
+    inline virtual void fillMsg() = 0;
+
+    msg_t msg_;
+};
+
+template <typename data_t>
+class Msg;
 
 class RealTimePublisherInterface
 {
@@ -47,35 +70,36 @@ protected:
     std::string topic_name_;
 };
 
-template <typename data_t, typename msg_t>
+template <typename data_t> // FIXME to remove
 class RealTimePublisherBase : public RealTimePublisherInterface
 {
 public:
 
-    typedef realtime_tools::RealtimePublisher<msg_t> rt_publisher_t;
+    typedef rt_logger::LoggerNumericArray msg_array_t;
 
-    RealTimePublisherBase(const ros::NodeHandle& ros_nh, const std::string topic_name, data_t* const data)
+    typedef realtime_tools::RealtimePublisher<msg_array_t> rt_publisher_t;
+
+    RealTimePublisherBase(const ros::NodeHandle& ros_nh, const std::string topic_name, MsgInterface::Ptr msg)
     {
         // Checks
         assert(topic_name.size() > 0);
-        assert(data);
+        assert(msg);
         topic_name_ = topic_name;
-        //pub_ptr_.reset(new rt_publisher_t(ros_nh,topic_name,10));
-        data_ = data;
+        msg_ = msg;
+        pub_ptr_.reset(new rt_publisher_t(ros_nh,topic_name,10));
     }
 
     /** Publish the topic. */
     inline virtual void publish(const ros::Time& time) = 0;
 
-    inline const data_t* getDataPtr(){if(data_) return data_;}
-
     inline rt_publisher_t* getPubPtr(){if(pub_ptr_) return pub_ptr_.get();}
 
-    msg_t msg_;
+    inline MsgInterface* getMsgPtr(){if(msg_) return msg_.get();}
 
 protected:
     std::shared_ptr<rt_publisher_t > pub_ptr_;
-    data_t* data_ = NULL;
+    msg_array_t msg_array_;
+    MsgInterface::Ptr msg_;
 };
 
 template<typename data_t> struct IsEigen     : std::is_base_of<Eigen::MatrixBase<typename std::decay<data_t>::type>, typename std::decay<data_t>::type > { };
@@ -96,11 +120,8 @@ struct isStdContainer<T,
         >> : std::true_type // It is enabled for iterable objects
 {};
 
-template <typename data_t>
-class RealTimePublisher;
-
 template <typename data_t, typename std::enable_if<IsEigen<data_t>::value,int>::type = 0>
-inline void resize_imp(RealTimePublisher<data_t>* obj)
+inline void resize_imp(Msg<data_t>* obj)
 {
     unsigned int cols = obj->getDataPtr()->cols();
     unsigned int rows = obj->getDataPtr()->rows();
@@ -117,60 +138,83 @@ inline void resize_imp(RealTimePublisher<data_t>* obj)
 }
 
 template <typename data_t, typename std::enable_if<IsScalar<data_t>::value,int>::type = 1>
-inline void resize_imp(RealTimePublisher<data_t>* obj)
+inline void resize_imp(Msg<data_t>* obj)
 {
     obj->msg_.array.data.resize(1);
 }
 
 template <typename data_t, typename std::enable_if<isStdContainer<data_t>::value,int>::type = 2>
-inline void resize_imp(RealTimePublisher<data_t>* obj)
+inline void resize_imp(Msg<data_t>* obj)
 {
     obj->msg_.array.data.resize(obj->getDataPtr()->size());
 }
 
 template <typename data_t, typename std::enable_if<IsEigen<data_t>::value,int>::type = 0>
-inline void fill_msg_imp(RealTimePublisher<data_t>* obj, const ros::Time& time)
+inline void fill_msg_imp(Msg<data_t>* obj)
 {
         const unsigned int & cols = obj->getDataPtr()->cols();
         const unsigned int & rows = obj->getDataPtr()->rows();
         for(unsigned int i = 0; i < rows; i++)
             for(unsigned int j = 0; j < cols; j++)
                 obj->msg_.array.data[i*cols + j] = static_cast<float>(obj->getDataPtr()->operator()(i,j));
-        obj->msg_.time.data = time;
 }
 
 template <typename data_t, typename std::enable_if<IsScalar<data_t>::value,int>::type = 1>
-inline void fill_msg_imp(RealTimePublisher<data_t>* obj, const ros::Time& time)
+inline void fill_msg_imp(Msg<data_t>* obj)
 {
         obj->msg_.array.data[0] = static_cast<float>(*obj->getDataPtr());
-        obj->msg_.time.data = time;
 }
 
 template <typename data_t, typename std::enable_if<isStdContainer<data_t>::value,int>::type = 2>
-inline void fill_msg_imp(RealTimePublisher<data_t>* obj, const ros::Time& time)
+inline void fill_msg_imp(Msg<data_t>* obj)
 {
         const unsigned int & size = obj->getDataPtr()->size();
         for(unsigned int i = 0; i < size; i++)
-                obj->msg_.array.data[i] = static_cast<float>(obj->getDataPtr()->operator[](i));
-        obj->msg_.time.data = time;
+            obj->msg_.array.data[i] = static_cast<float>(obj->getDataPtr()->operator[](i));
 }
 
 template <typename data_t>
-class RealTimePublisher : public RealTimePublisherBase<data_t,rt_logger::LoggerNumeric>
+class Msg : public MsgInterface
 {
 public:
 
-    RealTimePublisher(const ros::NodeHandle& ros_nh, const std::string topic_name, data_t* const data)
-        :RealTimePublisherBase<data_t,rt_logger::LoggerNumeric>(ros_nh,topic_name,data)
+    Msg(data_t* const data, const std::string data_name)
     {
+        assert(data);
+        data_ = data;
         resize_imp<data_t>(this);
+    }
+
+    inline virtual void fillMsg() override
+    {
+       fill_msg_imp<data_t>(this);
+    }
+
+    inline const data_t* getDataPtr(){if(data_) return data_;}
+
+private:
+
+    data_t* data_;
+};
+
+template <typename data_t> // FIXME to remove
+class RealTimePublisher : public RealTimePublisherBase<data_t>
+{
+public:
+
+    RealTimePublisher(const ros::NodeHandle& ros_nh, const std::string topic_name, MsgInterface::Ptr msg)
+        :RealTimePublisherBase<data_t>(ros_nh,topic_name,msg)
+    {
+        //resize_imp<data_t>(this);
     }
 
     inline void publish(const ros::Time& time) override
     {
-        if(this->getPubPtr()->trylock() && this->getDataPtr())
+        if(this->getPubPtr()->trylock() && this->getMsgPtr())
         {
-            fill_msg_imp<data_t>(this,time);
+            this->getMsgPtr()->fillMsg();
+            //this->msg_.time.data = time;
+            //this->getPubPtr()->msg_.array[0] = this->getMsgPtr()->msg_; // FIXME
             this->getPubPtr()->unlockAndPublish();
         }
     }
@@ -207,7 +251,24 @@ public:
 
     // Add a new fresh RealTimePublisher
     template <typename data_t>
-    void addPublisher(const std::string& topic_name, data_t* const data_ptr)
+    void addPublisher(const std::string& topic_name, data_t* const data_ptr, const std::string& data_name = "")
+    {
+        std::shared_ptr<Msg<data_t>> new_msg_ptr;
+        new_msg_ptr.reset(new Msg<data_t>(data_ptr,data_name));
+
+        MsgInterface::Ptr msg_ptr =
+                std::static_pointer_cast<MsgInterface>(new_msg_ptr);
+
+        std::shared_ptr<RealTimePublisher<data_t>> new_pub_ptr;
+        new_pub_ptr.reset(new RealTimePublisher<data_t>(nh_,topic_name,msg_ptr)); // FIXME
+
+        std::shared_ptr<rt_publisher_interface_t> pub_ptr =
+                std::static_pointer_cast<rt_publisher_interface_t>(new_pub_ptr);
+        addPublisher(pub_ptr);
+    }
+
+    /*template <typename data_t>
+    void addData(const std::string& topic_name, data_t* const data_ptr, const std::string& data_name = "")
     {
         std::shared_ptr<RealTimePublisher<data_t>> new_pub_ptr;
         new_pub_ptr.reset(new RealTimePublisher<data_t>(nh_,topic_name,data_ptr));
@@ -215,18 +276,7 @@ public:
         std::shared_ptr<rt_publisher_interface_t> pub_ptr =
                 std::static_pointer_cast<rt_publisher_interface_t>(new_pub_ptr);
         addPublisher(pub_ptr);
-    }
-
-    template <typename data_t>
-    void addData(const std::string& topic_name, const std::string& data_name, data_t* const data_ptr)
-    {
-        std::shared_ptr<RealTimePublisher<data_t>> new_pub_ptr;
-        new_pub_ptr.reset(new RealTimePublisher<data_t>(nh_,topic_name,data_ptr));
-
-        std::shared_ptr<rt_publisher_interface_t> pub_ptr =
-                std::static_pointer_cast<rt_publisher_interface_t>(new_pub_ptr);
-        addPublisher(pub_ptr);
-    }
+    }*/
 
     // Publish!
     void publishAll(const ros::Time& time)

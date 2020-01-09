@@ -1,2 +1,2 @@
-rt_logger/String[] name
+std_msgs/Time time
 rt_logger/LoggerNumeric[] array
