@@ -219,7 +219,7 @@ inline void fill_msg_imp(Msg<data_t>* obj)
 template <typename data_t, typename std::enable_if<isStdContainer<data_t>::value,int>::type = 2>
 inline void fill_msg_imp(Msg<data_t>* obj)
 {
-  const unsigned int & rows = obj->getDataPtr()->rows();
+  const unsigned int & rows = obj->getDataPtr()->size();
   for(unsigned int i = 0; i < rows; i++)
     obj->getRosMsg().array.data[i] = static_cast<float>(obj->getDataPtr()->operator[](i));
 }
