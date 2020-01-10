@@ -144,24 +144,24 @@ struct isStdContainer : std::false_type
 template<typename T>
 struct isStdContainer<T,
         to_void<decltype(std::declval<T>().begin()),
-                decltype(std::declval<T>().end()),
-                typename T::value_type
-        >> : std::true_type // It is enabled for iterable objects
+decltype(std::declval<T>().end()),
+typename T::value_type
+>> : std::true_type // It is enabled for iterable objects
 {};
 
 template <typename data_t, typename std::enable_if<IsEigen<data_t>::value,int>::type = 0>
 inline void resize_imp(Msg<data_t>* obj)
 {
-    unsigned int cols = obj->getDataPtr()->cols();
     unsigned int rows = obj->getDataPtr()->rows();
+    unsigned int cols = obj->getDataPtr()->cols();
     obj->getRosMsg().array.layout.dim.push_back(std_msgs::MultiArrayDimension());
     obj->getRosMsg().array.layout.dim.push_back(std_msgs::MultiArrayDimension());
     obj->getRosMsg().array.layout.dim[0].label = "rows";
     obj->getRosMsg().array.layout.dim[1].label = "cols";
     obj->getRosMsg().array.layout.dim[0].size = rows;
     obj->getRosMsg().array.layout.dim[1].size = cols;
-    obj->getRosMsg().array.layout.dim[0].stride = rows*cols;
-    obj->getRosMsg().array.layout.dim[1].stride = cols;
+    obj->getRosMsg().array.layout.dim[0].stride = cols;
+    obj->getRosMsg().array.layout.dim[1].stride = 1;
     obj->getRosMsg().array.layout.data_offset = 0;
     obj->getRosMsg().array.data.resize(rows*cols);
 }
@@ -169,37 +169,60 @@ inline void resize_imp(Msg<data_t>* obj)
 template <typename data_t, typename std::enable_if<IsScalar<data_t>::value,int>::type = 1>
 inline void resize_imp(Msg<data_t>* obj)
 {
-    obj->getRosMsg().array.data.resize(1);
+    unsigned int rows = 1;
+    unsigned int cols = 1;
+    obj->getRosMsg().array.layout.dim.push_back(std_msgs::MultiArrayDimension());
+    obj->getRosMsg().array.layout.dim.push_back(std_msgs::MultiArrayDimension());
+    obj->getRosMsg().array.layout.dim[0].label = "rows";
+    obj->getRosMsg().array.layout.dim[1].label = "cols";
+    obj->getRosMsg().array.layout.dim[0].size = rows;
+    obj->getRosMsg().array.layout.dim[1].size = cols;
+    obj->getRosMsg().array.layout.dim[0].stride = 0;
+    obj->getRosMsg().array.layout.dim[1].stride = 0;
+    obj->getRosMsg().array.layout.data_offset = 0;
+    obj->getRosMsg().array.data.resize(rows*cols);
 }
 
 template <typename data_t, typename std::enable_if<isStdContainer<data_t>::value,int>::type = 2>
 inline void resize_imp(Msg<data_t>* obj)
 {
-    obj->getRosMsg().array.data.resize(obj->getDataPtr()->size());
+    unsigned int rows = obj->getDataPtr()->size(); // We assume a column vector
+    unsigned int cols = 1;
+    obj->getRosMsg().array.layout.dim.push_back(std_msgs::MultiArrayDimension());
+    obj->getRosMsg().array.layout.dim.push_back(std_msgs::MultiArrayDimension());
+    obj->getRosMsg().array.layout.dim[0].label = "rows";
+    obj->getRosMsg().array.layout.dim[1].label = "cols";
+    obj->getRosMsg().array.layout.dim[0].size = rows;
+    obj->getRosMsg().array.layout.dim[1].size = cols;
+    obj->getRosMsg().array.layout.dim[0].stride = 1;
+    obj->getRosMsg().array.layout.dim[1].stride = 0;
+    obj->getRosMsg().array.layout.data_offset = 0;
+    obj->getRosMsg().array.data.resize(rows*cols);
 }
 
+/*  To access the data the common formulation is the following: v[i_row * stride_row + j_col * stride_col + data_offset] */
 template <typename data_t, typename std::enable_if<IsEigen<data_t>::value,int>::type = 0>
 inline void fill_msg_imp(Msg<data_t>* obj)
 {
-        const unsigned int & cols = obj->getDataPtr()->cols();
-        const unsigned int & rows = obj->getDataPtr()->rows();
-        for(unsigned int i = 0; i < rows; i++)
-            for(unsigned int j = 0; j < cols; j++)
-                obj->getRosMsg().array.data[i*cols + j] = static_cast<float>(obj->getDataPtr()->operator()(i,j));
+    const unsigned int & cols = obj->getDataPtr()->cols();
+    const unsigned int & rows = obj->getDataPtr()->rows();
+    for(unsigned int i = 0; i < rows; i++)
+        for(unsigned int j = 0; j < cols; j++)
+            obj->getRosMsg().array.data[i*cols + j] = static_cast<float>(obj->getDataPtr()->operator()(i,j));
 }
 
 template <typename data_t, typename std::enable_if<IsScalar<data_t>::value,int>::type = 1>
 inline void fill_msg_imp(Msg<data_t>* obj)
 {
-        obj->getRosMsg().array.data[0] = static_cast<float>(*obj->getDataPtr());
+    obj->getRosMsg().array.data[0] = static_cast<float>(*obj->getDataPtr());
 }
 
 template <typename data_t, typename std::enable_if<isStdContainer<data_t>::value,int>::type = 2>
 inline void fill_msg_imp(Msg<data_t>* obj)
 {
-        const unsigned int & size = obj->getDataPtr()->size();
-        for(unsigned int i = 0; i < size; i++)
-            obj->getRosMsg().array.data[i] = static_cast<float>(obj->getDataPtr()->operator[](i));
+    const unsigned int & rows = obj->getDataPtr()->size();
+    for(unsigned int i = 0; i < rows; i++)
+        obj->getRosMsg().array.data[i] = static_cast<float>(obj->getDataPtr()->operator[](i));
 }
 
 template <typename data_t>
@@ -217,8 +240,8 @@ public:
 
     virtual void fillMsg() override
     {
-       fill_msg_imp<data_t>(this);
-       this->getRosMsg().name.data = name_;
+        fill_msg_imp<data_t>(this);
+        this->getRosMsg().name.data = name_;
     }
 
     inline const data_t* getDataPtr(){if(data_) return data_;}
