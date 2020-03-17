@@ -67,13 +67,13 @@ public:
     /** Publish the topic. */
     inline virtual void publish(const ros::Time& time) = 0;
 
-    inline const data_t* getDataPtr(){if(data_) return data_;}
+    inline const data_t* getDataPtr(){return data_;}
 
-    inline rt_publisher_t* getPubPtr(){if(pub_ptr_) return pub_ptr_.get();}
+    inline rt_publisher_t* getPubPtr(){return pub_ptr_.get();}
 
 protected:
     std::shared_ptr<rt_publisher_t > pub_ptr_;
-    data_t* data_ = NULL;
+    data_t* data_ = nullptr;
 
 };
 
