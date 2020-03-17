@@ -7,7 +7,8 @@ find_package(catkin REQUIRED
     roscpp realtime_tools std_msgs message_generation)
 
 add_message_files(FILES
-    LoggerNumeric.msg)
+    LoggerNumeric.msg
+    LoggerNumericArray.msg)
 
 generate_messages(
     DEPENDENCIES

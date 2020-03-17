@@ -36,14 +36,19 @@ public:
     }
 
     template <typename data_t>
-    void addPublisher(const std::string& name, const data_t& x)
+    void addPublisher(const std::string& topic_name, const data_t& data, const std::string& data_name = "")
     {
-        publishers_->addPublisher(name,&x);
+        publishers_->addPublisher(topic_name,&data,data_name);
     }
 
     void publish(const ros::Time& time)
     {
-        publishers_->publishAll(time);
+        publishers_->publish(time);
+    }
+
+    void publish(const ros::Time& time, const std::string& topic_name)
+    {
+        publishers_->publish(time,topic_name);
     }
 
 private:
@@ -51,7 +56,7 @@ private:
   RtLogger()
   {
       ros::NodeHandle logger_nh("rt_logger");
-      publishers_.reset(new RealTimePublishers(logger_nh));
+      publishers_.reset(new PublishersManager(logger_nh));
   }
 
   //~RtLogger()
@@ -59,7 +64,7 @@ private:
   RtLogger(const RtLogger&)= delete;
   RtLogger& operator=(const RtLogger&)= delete;
 
-  RealTimePublishers::Ptr publishers_;
+  PublishersManager::Ptr publishers_;
 
 };
 

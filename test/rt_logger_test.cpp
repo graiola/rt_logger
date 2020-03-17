@@ -4,37 +4,55 @@
 
 using namespace rt_logger;
 
-std::vector<double> std_vector(3);
-double scalar;
-Eigen::VectorXd eigen_vector(10);
-Eigen::MatrixXd eigen_matrix(10,10);
+static std::vector<double> std_vector(3);
+static double scalar;
+static Eigen::VectorXd eigen_vector(10);
+static Eigen::MatrixXd eigen_matrix(10,10);
 
-TEST(RtLoggerTest, StdVector)
+TEST(RtLoggerTest, StdVectorPublisher)
 {
     EXPECT_NO_THROW(RtLogger::getLogger().addPublisher("/std_vector",std_vector));
 }
 
-TEST(RtLoggerTest, Scalar)
+TEST(RtLoggerTest, ScalarPublisher)
 {
     EXPECT_NO_THROW(RtLogger::getLogger().addPublisher("/scalar",scalar));
 }
 
-TEST(RtLoggerTest, EigenVector)
+TEST(RtLoggerTest, EigenVectorPublisher)
 {
     EXPECT_NO_THROW(RtLogger::getLogger().addPublisher("/eigen_vector",eigen_vector));
 }
 
-TEST(RtLoggerTest, EigenMatrix)
+TEST(RtLoggerTest, EigenMatrixPublisher)
 {
     EXPECT_NO_THROW(RtLogger::getLogger().addPublisher("/eigen_matrix",eigen_matrix));
+}
+
+TEST(RtLoggerTest, SinglePublisher)
+{
+    EXPECT_NO_THROW(RtLogger::getLogger().addPublisher("/single_publisher",std_vector,"std_vector"));
+    EXPECT_NO_THROW(RtLogger::getLogger().addPublisher("/single_publisher",scalar,"scalar"));
+    EXPECT_NO_THROW(RtLogger::getLogger().addPublisher("/single_publisher",eigen_vector,"eigen_vector"));
+    EXPECT_NO_THROW(RtLogger::getLogger().addPublisher("/single_publisher",eigen_matrix,"eigen_matrix"));
+}
+
+TEST(RtLoggerTest, PublishAll)
+{
+    int cnt = 0;
+    while(ros::ok() && cnt++<50)
+    {
+        EXPECT_NO_THROW(RtLogger::getLogger().publish(ros::Time::now()));
+        ros::Duration(0.1).sleep();
+    }
 }
 
 TEST(RtLoggerTest, Publish)
 {
     int cnt = 0;
-    while(ros::ok() && cnt++<100)
+    while(ros::ok() && cnt++<50)
     {
-        EXPECT_NO_THROW(RtLogger::getLogger().publish(ros::Time::now()));
+        EXPECT_NO_THROW(RtLogger::getLogger().publish(ros::Time::now(),"/single_publisher"));
         ros::Duration(0.1).sleep();
     }
 }
