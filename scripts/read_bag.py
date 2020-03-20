@@ -22,8 +22,9 @@ def parse(bag_file, topic_name):
     time = []
     values = {}
 
-    for topic, msg, t in bag.read_messages('/' + topic_name):
-        time.append(msg.time.data.secs + msg.time.data.nsecs * 10e-9)
+    for topic, msg, t_rx in bag.read_messages('/' + topic_name):
+        t_tx = 1.0 * msg.time.data.secs + 0.1 * msg.time.data.nsecs * 10e-9
+        time.append(t_tx)
         for i_data in range(0, len(msg.array)):
             key = msg.array[i_data].name.data
             value = numpy.array(msg.array[i_data].array.data)
