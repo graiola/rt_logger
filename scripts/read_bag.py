@@ -34,13 +34,15 @@ def parse(bag_file, topic_name):
             values = key_check(key, values)
             values[key].append(value)
 
-    mat_file_name = topic_name + '_time.mat'
+    data_name = topic_name + '_time'
+    mat_file_name = data_name + '.mat'
     print "File saved: ", mat_file_name
-    scipy.io.savemat(mat_file_name, mdict={'time': time})
+    scipy.io.savemat(mat_file_name, mdict={data_name: time})
 
     for key in values.keys():
-        mat_file_name = topic_name + '_' + key + '_values.mat'
-        scipy.io.savemat(mat_file_name, mdict={key: values[key]})
+        data_name = topic_name + '_' + key
+        mat_file_name = data_name + '.mat'
+        scipy.io.savemat(mat_file_name, mdict={data_name: values[key]})
         print "File saved: ", mat_file_name
 
     bag.close()
