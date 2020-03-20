@@ -24,6 +24,7 @@
 #include <rt_logger/LoggerNumericArray.h>
 #include <eigen3/Eigen/Core>
 #include <type_traits>
+#include <regex>
 
 namespace rt_logger
 {
@@ -280,9 +281,20 @@ public:
     template <typename data_t>
     void addPublisher(const std::string& topic_name, data_t* const data_ptr, const std::string& data_name = "")
     {
+	// If data_name is empty, use the topic_name instead and replace the "/" with "_"
+	std::string name;
+	if(data_name.empty())
+	{
+	   name = topic_name;
+	   name = std::regex_replace(name, std::regex("/"), "_");
+           name = name.substr(name.find_first_of("_")+1);	
+	}
+	else
+ 	   name = data_name;
+	
         // Create the new message
         std::shared_ptr<Msg<data_t>> new_msg_ptr;
-        new_msg_ptr.reset(new Msg<data_t>(data_ptr,data_name));
+        new_msg_ptr.reset(new Msg<data_t>(data_ptr,name));
 
         MsgInterface::Ptr msg_ptr =
                 std::static_pointer_cast<MsgInterface>(new_msg_ptr);
@@ -292,7 +304,7 @@ public:
             createPublisher(topic_name);
 
         if(!pubs_map_[topic_name]->addMsg(msg_ptr))
-            ROS_WARN_STREAM("Can not add Msg "<<data_name<< " the name is already taken!");
+            ROS_WARN_STREAM("Can not add Msg "<<name<< " the name is already taken!");
     }
 
     /**
