@@ -30,7 +30,7 @@ def parse(bag_file, topic_name):
             value = numpy.array(msg.array[i_data].array.data)
             rows = msg.array[i_data].array.layout.dim[0].size
             cols = msg.array[i_data].array.layout.dim[1].size
-            value.reshape(rows, cols)
+            value = value.reshape(rows, cols)
             values = key_check(key, values)
             values[key].append(value)
 
