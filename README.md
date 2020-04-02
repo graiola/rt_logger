@@ -20,8 +20,15 @@ Finally, add this line in the main loop of your code to publish the data:
 
 Check out this [test](https://github.com/graiola/rt_logger/blob/master/test/rt_logger_test.cpp) for more examples.
 
-## To do
+## Import data on Matlab or Octave
+First, be sure to have [scipy](https://www.scipy.org/) and [numpy](https://numpy.org/) installed:
 
-- [x] Add the ros time to the publishers 
-- [ ] Add the possibility to write to file through a buffer
-- [x] Add one publisher option
+`sudo apt-get update && sudo apt-get install python-scipy python-numpy -y`
+
+Create the publishers with rt_logger, and record the topics with rosbag, see the command line [here](http://wiki.ros.org/rosbag/Commandline)
+
+With this simple [script](https://github.com/graiola/rt_logger/blob/master/scripts/read_bag.py) you can extract mat files from the bag file, for example run:
+
+` ./read_bag.py -b test.bag -t single_publisher `
+
+This will create a mat file for each data in the topic 'single_publisher'.
