@@ -29,6 +29,6 @@ Create the publishers with rt_logger, and record the topics with rosbag, see the
 
 With this simple [script](https://github.com/graiola/rt_logger/blob/master/scripts/read_bag.py) you can extract mat files from the bag file, for example run:
 
-` ./read_bag.py -b test.bag -t single_publisher `
+` ./read_bag.py -b test.bag `
 
-This will create a mat file for each data in the topic 'single_publisher'.
+This will create a mat file for each topic in the logger.
