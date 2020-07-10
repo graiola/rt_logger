@@ -59,7 +59,7 @@ private:
   {
       try
       {
-          ros_node_.reset(new RosNode(""));
+          ros_node_.reset(new RosNode("rt_logger"));
           publishers_.reset(new PublishersManager(ros_node_->getNode()));
       }
       catch (std::exception& e)
