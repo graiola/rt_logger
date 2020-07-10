@@ -21,6 +21,8 @@
 
 #include <ros/ros.h>
 #include <rt_logger/publishers.h>
+#include <rt_logger/rosnode.h>
+#include <exception>
 
 namespace rt_logger
 {
@@ -55,16 +57,22 @@ private:
 
   RtLogger()
   {
-      ros::NodeHandle logger_nh("rt_logger");
-      publishers_.reset(new PublishersManager(logger_nh));
+      try
+      {
+          ros_node_.reset(new RosNode("rt_logger"));
+          publishers_.reset(new PublishersManager(ros_node_->getNode()));
+      }
+      catch (std::exception& e)
+      {
+         ROS_ERROR("%s\n",e.what());
+      }
   }
-
-  //~RtLogger()
 
   RtLogger(const RtLogger&)= delete;
   RtLogger& operator=(const RtLogger&)= delete;
 
   PublishersManager::Ptr publishers_;
+  RosNode::Ptr ros_node_;
 
 };
 
