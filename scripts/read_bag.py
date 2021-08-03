@@ -21,8 +21,8 @@ def parse_specific_topic(bag, topic_name):
     time = []
     values = {}
 
-    topic_name = topic_name.replace("/", "")  # always remove the escape symbol
-    for topic, msg, t_rx in bag.read_messages('/'+topic_name):
+    #topic_name = topic_name.replace("/", "")  # always remove the escape symbol
+    for topic, msg, t_rx in bag.read_messages(topic_name):
         t_tx = 1.0 * msg.time.data.secs + 0.1 * msg.time.data.nsecs * 10e-9
         time.append(t_tx)
         for i_data in range(0, len(msg.array)):
@@ -34,13 +34,13 @@ def parse_specific_topic(bag, topic_name):
             values = key_check(key, values)
             values[key].append(value)
 
-    data_name = topic_name + '_time'
+    data_name =  topic_name.replace("/", "",1).replace("/", "_") + '_time'
     mat_file_name = data_name + '.mat'
     print "File saved: ", mat_file_name
     scipy.io.savemat(mat_file_name, mdict={data_name: time})
 
     for key in values.keys():
-        data_name = topic_name + '_' + key
+        data_name = topic_name.replace("/", "",1).replace("/", "_") + '_' + key
         mat_file_name = data_name + '.mat'
         scipy.io.savemat(mat_file_name, mdict={data_name: values[key]})
         print "File saved: ", mat_file_name
@@ -65,7 +65,7 @@ def parse(bag_file, topic_name=''):
                 parse_specific_topic(bag, topic)
             i_topic += 1
     else:  # Parse a specific topic
-        idx = topics.index('/'+topic_name)
+        idx = topics.index(topic_name)
         if idx and types[idx].msg_type == supported_data_type:
             parse_specific_topic(bag, topic_name)
         else:
