@@ -308,6 +308,24 @@ public:
     }
 
     /**
+     * @brief Remove a real time publisher
+     */
+    void removePublisher(const std::string& topic_name)
+    {
+        pubs_map_.erase(topic_name);
+    }
+
+    /**
+     * @brief Remove all real time publishers
+     */
+    void removePublishers()
+    {
+        auto it = pubs_map_.cbegin();
+        while (it != pubs_map_.cend())
+            it = pubs_map_.erase(it);
+    }
+
+    /**
      * @brief Publish all the available topics
      */
     void publish(const ros::Time& time)

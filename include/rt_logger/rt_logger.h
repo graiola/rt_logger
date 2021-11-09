@@ -51,6 +51,16 @@ public:
         publishers_->publish(time,topic_name);
     }
 
+    void removePublisher(const std::string& topic_name)
+    {
+        publishers_->removePublisher(topic_name);
+    }
+
+    void removePublishers()
+    {
+        publishers_->removePublishers();
+    }
+
 private:
 
   RtLogger()
