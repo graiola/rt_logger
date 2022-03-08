@@ -77,7 +77,7 @@ def parse(bag_file, topic_name=''):
 def main(argv):
     bag_file = ''
     topic_name = ''
-    usage = 'test.py -b <bag_file> [-t <topic_name>]'
+    usage = 'read_bag.py -b <bag_file.bag> [-t <topic_name>]'
     try:
         opts, args = getopt.getopt(argv, "hb:t:", ["help", "bag=", "topic="])
     except getopt.GetoptError as err:
