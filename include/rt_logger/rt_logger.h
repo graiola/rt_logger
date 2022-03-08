@@ -51,12 +51,21 @@ public:
         publishers_->publish(time,topic_name);
     }
 
+    void removePublisher(const std::string& topic_name)
+    {
+        publishers_->removePublisher(topic_name);
+    }
+
+    void removePublishers()
+    {
+        publishers_->removePublishers();
+    }
+
 private:
 
   RtLogger()
   {
-      ros::NodeHandle logger_nh("rt_logger");
-      publishers_.reset(new PublishersManager(logger_nh));
+      publishers_.reset(new PublishersManager(nh_));
   }
 
   //~RtLogger()
@@ -65,6 +74,7 @@ private:
   RtLogger& operator=(const RtLogger&)= delete;
 
   PublishersManager::Ptr publishers_;
+  ros::NodeHandle nh_;
 
 };
 
