@@ -1,38 +1,81 @@
-cmake_minimum_required(VERSION 2.8.3)
+cmake_minimum_required(VERSION 3.5)
 project(rt_logger)
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
 
-find_package(catkin REQUIRED
-    roscpp realtime_tools std_msgs message_generation)
+find_package(catkin QUIET)
+find_package(ament_cmake QUIET)
 
-add_message_files(FILES
-    LoggerNumeric.msg
-    LoggerNumericArray.msg)
+if(${catkin_FOUND})
+    set(ROS_VERSION "ros")
+    add_definitions(-DROS)
+    message(STATUS "Add ROS definition")
 
-generate_messages(
-    DEPENDENCIES
-    std_msgs)
+    find_package(message_generation REQUIRED)
+    find_package(realtime_tools REQUIRED)
+    find_package(std_msgs REQUIRED)
 
-catkin_package(
-  INCLUDE_DIRS include
-  CATKIN_DEPENDS
-)
+    include_directories(
+        include
+        ${realtime_tools_INCLUDE_DIRS}
+        ${std_msgs_INCLUDE_DIRS}
+    )
 
-include_directories(
-    include
-    ${catkin_INCLUDE_DIRS}
-)
+    add_message_files(
+        DIRECTORY
+            msg/ros
+        FILES
+            LoggerNumeric.msg
+            LoggerNumericArray.msg
+    )
 
-install(DIRECTORY include/${PROJECT_NAME}/
-        DESTINATION ${CATKIN_PACKAGE_INCLUDE_DESTINATION})
+    generate_messages(
+        DEPENDENCIES
+        std_msgs)
 
-if (CATKIN_ENABLE_TESTING)
-    find_package(catkin REQUIRED COMPONENTS roscpp rostest realtime_tools std_msgs)
-    include_directories(include ${catkin_INCLUDE_DIRS})
+    catkin_package(
+      INCLUDE_DIRS include
+      CATKIN_DEPENDS realtime_tools std_msgs message_generation
+    )
 
-    add_rostest_gtest(rt_logger_test
-        test/rt_logger_test.test
-        test/rt_logger_test.cpp)
-    target_link_libraries(rt_logger_test ${catkin_LIBRARIES})
+elseif(${ament_cmake_FOUND})
+    set(ROS_VERSION "ros2")
+    add_definitions(-DROS2)
+    message(STATUS "Add ROS2 definition")
+
+    find_package(rosidl_default_generators REQUIRED)
+    find_package(realtime_tools REQUIRED)
+    find_package(builtin_interfaces REQUIRED)
+
+    include_directories(
+        include
+        ${realtime_tools_INCLUDE_DIRS}
+        ${builtin_interfaces_INCLUDE_DIRS}
+    )
+
+    rosidl_generate_interfaces(${PROJECT_NAME}
+        "msg/${ROS_VERSION}/LoggerNumeric.msg"
+        "msg/${ROS_VERSION}/LoggerNumericArray.msg"
+        DEPENDENCIES builtin_interfaces std_msgs
+        #LIBRARY_NAME ${PROJECT_NAME}
+    )
+
+    ament_export_include_directories(include)
+    ament_export_dependencies(realtime_tools builtin_interfaces rosidl_default_runtime std_msgs)
+
+    ament_package()
+
 endif()
+
+install(DIRECTORY include/${PROJECT_NAME}
+        DESTINATION ${CMAKE_INSTALL_PREFIX}/include)
+
+#if (CATKIN_ENABLE_TESTING)
+#    find_package(catkin REQUIRED COMPONENTS roscpp rostest realtime_tools std_msgs)
+#    include_directories(include ${catkin_INCLUDE_DIRS})
+#
+#    add_rostest_gtest(rt_logger_test
+#        test/rt_logger_test.test
+#        test/rt_logger_test.cpp)
+#    target_link_libraries(rt_logger_test ${catkin_LIBRARIES})
+#endif()
