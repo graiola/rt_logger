@@ -27,6 +27,12 @@
 #include <regex>
 #include <mutex>
 
+#include <deque>    // For circular buffer implementation
+#include <cstdlib>  // For accessing system's tmp directory
+#include <iomanip>  // For formatting timestamps in filenames
+#include <sstream>  // For constructing filenames
+#include <matio.h>  // For MAT file operations
+
 namespace rt_logger
 {
 
@@ -84,27 +90,26 @@ protected:
   std::string topic_name_;
 };
 
-class RealTimePublisher : public RealTimePublisherInterface // FIXME change names
+class RealTimePublisher : public RealTimePublisherInterface
 {
 public:
-
   typedef rt_logger::LoggerNumericArray ros_msg_array_t;
-
   typedef realtime_tools::RealtimePublisher<ros_msg_array_t> rt_publisher_t;
 
-  RealTimePublisher(const ros::NodeHandle& ros_nh, const std::string topic_name)
+  RealTimePublisher(const ros::NodeHandle& ros_nh, const std::string& topic_name, bool enable_mat_dump = false, size_t buffer_size = 100)
+    : enable_mat_dump_(enable_mat_dump), buffer_size_(buffer_size)
   {
-    // Checks
     assert(topic_name.size() > 0);
     topic_name_ = topic_name;
-    pub_ptr_.reset(new rt_publisher_t(ros_nh,topic_name,10));
+    pub_ptr_.reset(new rt_publisher_t(ros_nh, topic_name, 10));
   }
 
-  /** Publish the topic. */
+  /** Publish the topic and store data in the circular buffer. */
   inline void publish(const ros::Time& time) override
   {
-    if(this->getPubPtr()->trylock())
-    {   unsigned int idx = 0;
+    if (this->getPubPtr()->trylock())
+    {
+      unsigned int idx = 0;
       for (auto& tmp_map : msgs_map_)
       {
         tmp_map.second->fillMsg();
@@ -112,27 +117,122 @@ public:
         idx++;
       }
       this->getPubPtr()->msg_.time.data = time;
+
+      // Store data in the circular buffer
+      if (enable_mat_dump_)
+      {
+        buffer_.push_back(this->getPubPtr()->msg_);
+        if (buffer_.size() > buffer_size_)
+        {
+          buffer_.pop_front();
+        }
+      }
+
       this->getPubPtr()->unlockAndPublish();
     }
   }
 
-
   virtual bool addMsg(MsgInterface::Ptr msg) override
   {
     this->getPubPtr()->msg_.array.push_back(msg->getRosMsg());
-    if(msgs_map_.count(msg->getName())!=0)
+    if (msgs_map_.count(msg->getName()) != 0)
       return false;
 
     msgs_map_[msg->getName()] = msg;
     return true;
   }
 
-  inline rt_publisher_t* getPubPtr(){return pub_ptr_.get();}
+  inline rt_publisher_t* getPubPtr() { return pub_ptr_.get(); }
+
+  void dumpToMat()
+  {
+    if (!enable_mat_dump_)
+    {
+      ROS_WARN_STREAM("MAT file dump is disabled for this publisher.");
+      return;
+    }
+
+    // Create a filename with a timestamp
+    std::ostringstream filename;
+    filename << "/tmp/" << topic_name_ << "_"
+             << std::chrono::system_clock::now().time_since_epoch().count()
+             << ".mat";
+
+    mat_t* matfile = Mat_CreateVer(filename.str().c_str(), nullptr, MAT_FT_MAT5);
+    if (!matfile)
+    {
+      ROS_ERROR_STREAM("Failed to create MAT file: " << filename.str());
+      return;
+    }
+
+    size_t entry_idx = 0;
+
+    for (const auto& msg : buffer_)
+    {
+      for (size_t i = 0; i < msg.array.size(); ++i)
+      {
+        const auto& logger_numeric = msg.array[i];
+        const auto& name = logger_numeric.name.data;
+        const auto& array = logger_numeric.array;
+
+        // Extract data and layout from Float64MultiArray
+        const auto& data = array.data;
+        const auto& layout = array.layout;
+
+        if (layout.dim.size() < 2)
+        {
+          ROS_ERROR_STREAM("Invalid layout dimensions in LoggerNumeric message.");
+          continue;
+        }
+
+        const unsigned int rows = layout.dim[0].size;
+        const unsigned int cols = layout.dim[1].size;
+
+        if (data.size() != rows * cols)
+        {
+          ROS_ERROR_STREAM("Data size mismatch in LoggerNumeric message.");
+          continue;
+        }
+
+        size_t dims[2] = { rows, cols };
+
+        // Use the name from LoggerNumeric for variable naming
+        std::string var_name = name.empty() ?
+              ("entry_" + std::to_string(entry_idx++) + "_msg_" + std::to_string(i)) :
+              name;
+
+        matvar_t* matvar = Mat_VarCreate(
+              var_name.c_str(), MAT_C_DOUBLE, MAT_T_DOUBLE, 2, dims, const_cast<double*>(data.data()), 0);
+
+        if (!matvar)
+        {
+          ROS_ERROR_STREAM("Failed to create MAT variable for: " << var_name);
+          continue;
+        }
+
+        if (Mat_VarWrite(matfile, matvar, MAT_COMPRESSION_NONE) != 0)
+        {
+          ROS_ERROR_STREAM("Failed to write MAT variable for: " << var_name);
+        }
+
+        Mat_VarFree(matvar);
+      }
+    }
+
+    Mat_Close(matfile);
+    ROS_INFO_STREAM("Successfully dumped data to MAT file: " << filename.str());
+  }
+
+
 
 protected:
-  std::shared_ptr<rt_publisher_t > pub_ptr_;
-  std::map<std::string,MsgInterface::Ptr> msgs_map_;
+  std::shared_ptr<rt_publisher_t> pub_ptr_;
+  std::map<std::string, MsgInterface::Ptr> msgs_map_;
 
+  // Circular buffer
+  std::deque<ros_msg_array_t> buffer_;
+  size_t buffer_size_;
+  bool enable_mat_dump_;
 };
 
 template<typename data_t> struct IsEigen     : std::is_base_of<Eigen::MatrixBase<typename std::decay<data_t>::type>, typename std::decay<data_t>::type > { };
