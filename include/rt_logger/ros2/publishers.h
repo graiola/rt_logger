@@ -96,14 +96,25 @@ protected:
   std::map<std::string, MsgInterface::Ptr> msgs_map_;
 };
 
-// Template specializations (same as before)
-template<typename data_t> struct IsEigen : std::is_base_of<Eigen::MatrixBase<typename std::decay<data_t>::type>, typename std::decay<data_t>::type> {};
-template<typename data_t> struct IsScalar : std::is_scalar<typename std::decay<data_t>::type> {};
+template<typename data_t> struct IsEigen     : std::is_base_of<Eigen::MatrixBase<typename std::decay<data_t>::type>, typename std::decay<data_t>::type > { };
+template<typename data_t> struct IsScalar    : std::is_scalar<typename std::decay<data_t>::type> { };
 
-template<typename ...> using to_void = void;
+template<typename ...>
+using to_void = void;
 
-template<typename T, typename = void> struct isStdContainer : std::false_type {};
-template<typename T> struct isStdContainer<T, to_void<decltype(std::declval<T>().begin()), decltype(std::declval<T>().end()), typename T::value_type>> : std::true_type {};
+template<typename T, typename = void>
+struct isStdContainer : std::false_type {};
+
+template<typename T>
+struct isStdContainer<
+    T,
+    std::enable_if_t<
+        !IsEigen<T>::value &&  // Exclude Eigen types
+        !std::is_scalar<T>::value && // Exclude scalar types
+        std::is_same<decltype(std::declval<T>().begin()), typename T::iterator>::value &&
+        std::is_same<decltype(std::declval<T>().end()), typename T::iterator>::value
+    >
+> : std::true_type {};
 
 template <typename data_t, typename std::enable_if<IsEigen<data_t>::value,int>::type = 0>
 inline void resize_imp(Msg<data_t>* obj)
