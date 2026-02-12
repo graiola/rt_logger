@@ -1,3 +1,8 @@
+/*
+ * SPDX-License-Identifier: MIT
+ * Copyright (c) Gennaro Raiola
+ */
+
 #ifndef RT_LOGGER_PUBLISHERS_H
 #define RT_LOGGER_PUBLISHERS_H
 
