@@ -61,11 +61,13 @@ elseif(${ament_cmake_FOUND})
     find_package(rosidl_default_generators REQUIRED)
     find_package(realtime_tools REQUIRED)
     find_package(builtin_interfaces REQUIRED)
+    find_package(std_msgs REQUIRED)
 
     include_directories(
         include
         ${realtime_tools_INCLUDE_DIRS}
         ${builtin_interfaces_INCLUDE_DIRS}
+        ${std_msgs_INCLUDE_DIRS}
     )
 
     rosidl_generate_interfaces(${PROJECT_NAME}
